@@ -586,6 +586,45 @@ def filter_LUCAS(LUCAS, cover_class = [ "artificial_land",
     
     return filtered_LUCAS
 
+# Code for sampling LUCAS points in GEE
+def filter_LUCAS_active_fallow(LUCAS, cover_class = [ "agriculture", "fallow"] ):
+   
+    # Convert class name string to LUCAS code for LC
+    LU_classifications = {
+    "agriculture": "U111",
+    "fallow": "U112"
+    }
+
+    # create selector for LC type
+    LU_classifications = pd.DataFrame(LU_classifications.items(), columns=['Land Use Type', 'Classification'])
+    classification = LU_classifications[LU_classifications['Land Use Type'] == cover_class]['Classification'].values[0]
+
+    # Create filter conditions for lc1 and lc2 separately (LC2 commented out, due to relative unimportance). Dominant LC will be LC1 if its cover is more than 50%
+    lu1_filter = ee.Filter.stringContains('lu1', classification)
+    #lc2_filter = ee.Filter.stringContains('lc2', classification)
+
+    # Filter where lc1_perc or lc2_perc are equal to "> 75%" (and don't apply this to year 2006 where the perc cover is missing)
+    year_filter = ee.Filter.eq('year', 2006)
+    lu1_perc_filter = ee.Filter.Or(ee.Filter.equals('lu1_perc', "> 90 %"), year_filter)
+
+    # Combine the two filter conditions with 'or' to filter the FeatureCollection
+    filter_lc1 = ee.Filter.And(lu1_filter, lu1_perc_filter)
+
+    # Add a filter to exclude features where parcel_area_ha is equal to desired plot sizes 
+   # parcel_area_filter = ee.Filter.Or(ee.Filter.inList('parcel_area_ha', ["1 - 10 ha", "> 10 ha"]),  year_filter)
+    
+    # Observation quality filter. Select only in-situ points with close and accurate gps coords, or In office Photo interpritation
+    filter_office_PI = ee.Filter.eq('obs_type', "In office PI")
+    filter_gps_prec = ee.Filter.Or(ee.Filter.lt('gps_prec', 15), filter_office_PI)
+    filter_obs_dist = ee.Filter.Or(ee.Filter.lt('obs_dist', 15), filter_office_PI)
+
+    # Combine the filter conditions
+   # combined_filter = ee.Filter.And(lu1_filter, parcel_area_filter, filter_gps_prec, filter_obs_dist)
+    combined_filter = ee.Filter.And(lu1_filter, filter_gps_prec, filter_obs_dist)
+    # Filter the feature collection
+    filtered_LUCAS = LUCAS.filter(combined_filter)
+    
+    return filtered_LUCAS
 
 # Define a function to find the closest year in lucas_years that is larger than the given year
 def LUCAS_find_closest_larger_year(year, LUCAS_years):
@@ -661,9 +700,5 @@ def process_tile_LUCAS(tileFEAT, LUCAS, cover_mask, year, month_start=1, month_e
         tile_data = pd.DataFrame(data_list)
 
         return tile_data
-    
 
-
-# ############################################## #
-# #### SMALL TOOLS TO WORK WITH RASTER DATA #### #
 
