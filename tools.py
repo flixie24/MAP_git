@@ -5,7 +5,7 @@ from osgeo import gdal, ogr, osr
 import os, shutil
 
 # ############################################## #
-# #### SMALL TOOLS TO WORK WITH VECTOR DATA #### #
+# #### TOOLS TO WORK WITH VECTOR DATA #### #
 def CopySHPtoMem(path):
     '''
     Small tool to load a local vector file into memory for faster processing
@@ -48,7 +48,8 @@ def CopySHPDisk(shape, outpath):
     del lyr, shape, sett90LYR, outSHP
     
 # ################################################################ #
-# #### SMALL TOOLS TO WORK TO DO STUFF IN GOOGLE EARTH ENGINE #### #
+# #### TOOLS TO WORK IN GEE #### #
+    
 def GetFullLandsatCollection_withIndices(roi, year):
     l4 = ee.ImageCollection("LANDSAT/LT04/C02/T1_L2").filterBounds(roi) \
         .filter(ee.Filter.date(ee.Date.fromYMD(year, 1, 1), ee.Date.fromYMD(year, 12, 31))).preprocess() \
@@ -87,6 +88,7 @@ def GetFullLandsatCollection_withIndices(roi, year):
 
     col = ee.ImageCollection(l4.merge(l5).merge(l7).merge(l8).merge(l9))
     return col
+
 def GetFullLandsatCollection(roi, year):
     l4 = ee.ImageCollection("LANDSAT/LT04/C02/T1_L2").filterBounds(roi) \
         .filter(ee.Filter.date(ee.Date.fromYMD(year, 1, 1), ee.Date.fromYMD(year, 12, 31))).preprocess() \
@@ -110,6 +112,7 @@ def GetFullLandsatCollection(roi, year):
 
     col = ee.ImageCollection(l4.merge(l5).merge(l7).merge(l8).merge(l9))
     return col
+
 def GetL8_9LandsatCollection(roi, year):
     if year < 2013:
         print("Landsat 8 started in 2013, please insert a year from 2013 onwards")
@@ -139,6 +142,7 @@ def Write_json_to_csv(json, path):
             out_pd = pd.concat([out_pd, pd.DataFrame(prop, index=[0])])
     # Write the pandas dataframe 
     out_pd.to_csv(path, index=False)
+
 def lyrTOfc(in_lyr):
     '''
     Function, that converts a vector-layer into a feature collection, that can
@@ -260,6 +264,7 @@ def fcTOshpMEM(fc_geojson):
     
 # ############################################## #
 # #### SMALL TOOLS TO WORK WITH RASTER DATA #### #
+
 def GetRasterProperties(raster):
     '''
     Function, that returns a dictionary with all necessary information of a raster file
@@ -276,6 +281,7 @@ def GetRasterProperties(raster):
     dType = band.DataType # data type
 
     return {'pr':pr, 'gt':gt, 'cls': cols, 'rws': rows, 'nbands': nbands, 'dataType':dType}
+
 def BuildVRT(folder, outfile, bandList="all"):
     '''
     :param folder: string (required). Folder where to search for the tiles
@@ -296,6 +302,7 @@ def BuildVRT(folder, outfile, bandList="all"):
         vrt = None
         vrt = gdal.Open(outfile)
     return vrt
+
 def SaveRASTERtoFile(memRas, outpath):
     endList = [[".tif", 'GTiff'], [".bsq", "ENVI"], [".img", "HFA"]]
     for end in endList:
@@ -306,6 +313,7 @@ def SaveRASTERtoFile(memRas, outpath):
     memRas = None
     outpath = None
     # To add --> find the highest rastervalue and subsequently find optimal format (bit, byte, float)
+
 def GetDataTypeHexaDec(gdalDtype):
     '''
     Tool for identifying the data type of a rasterband in form of a hexadecimal code. Is needed for many scripts
@@ -318,6 +326,7 @@ def GetDataTypeHexaDec(gdalDtype):
         if dT[0] == gdalDtype:
             band_dType = dT[1]
     return band_dType
+
 def Geom_Raster_to_np(geom, raster, band, pxSize_m):
     '''
     Function that takes a geometry from a polygon shapefile and a rasterfile, and returns both features as 2d-arryas
@@ -367,6 +376,7 @@ def Geom_Raster_to_np(geom, raster, band, pxSize_m):
     #CopyMEMtoDisk(raster_sub, workfolder + "raster.tif")
     #exit(0)
     return geom_np, raster_np
+
 def OpenRasterToMemory(path):
     drvMemR = gdal.GetDriverByName('MEM')
     ds = gdal.Open(path)
@@ -514,6 +524,7 @@ def ClipRasterBySHP(SHP, raster, mask=False):
 
 # ######################################################## #
 # #### SMALL TOOLS TO WORK WITH FILES AN FILE SYSTEMS #### #
+
 def CreateFolder(path):
     if not os.path.exists(path):
         os.makedirs(path)
@@ -521,20 +532,30 @@ def CreateFolder(path):
     else:
         print("Folder already exists")
     return path
-def DeleteAllItemsInFolder(path):
 
-    # test if last item is "/", otherwise add it
-    if not path.endswith("/"):
-        path = path + "/"
-    else:
-        path = path
-    # Now loop through items in folder, and delete them one by one
+def DeleteAllItemsInFolder(path):
+    print(f"Deleting all items in folder: {path}")
+    # Loop through items in folder, and delete them one by one
     itemList = os.listdir(path)
+    if not itemList:
+        print(f"Folder {path} is already empty.")
+        return
+    
     for item in itemList:
-        inname = path + item + "/"
-        outname = path + "1/"
-        os.rename(inname, outname)
-        shutil.rmtree(outname)
+        item_path = os.path.join(path, item)
+        if os.path.isfile(item_path):
+            print(f"Deleting file: {item_path}")
+            os.unlink(item_path)
+        elif os.path.isdir(item_path):
+            print(f"Deleting directory: {item_path}")
+            shutil.rmtree(item_path)
+    print("All items in {path} have been deleted.")
+
+    # Check if folder is empty after deletion
+    itemList = os.listdir(path)
+    if not itemList:
+        print(f"Folder {path} is now empty.")
+
 def GetFilesInFolderWithEnding(folder, ext, fullPath):
     ''' Function that returns all filenames in a folder that match the extension
 
